@@ -1,4 +1,7 @@
+import { HttpServer } from "@effect/platform";
 import type { MetaFunction } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import * as Remix from "~/services/Remix.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -7,7 +10,13 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+export const loader = Remix.loaderGen(function*($) {
+  return yield* $(HttpServer.response.json({ hello: "world" }));
+});
+
 export default function Index() {
+  const data = useLoaderData<typeof loader>();
+  console.log(data);
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: "1.8" }}>
       <h1>Welcome to Remix</h1>
