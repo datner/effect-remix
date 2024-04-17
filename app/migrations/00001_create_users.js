@@ -1,8 +1,8 @@
-import * as Sql from "@sqlfx/sqlite/Client";
+import * as Sql from "@effect/sql-sqlite-node";
 import * as Effect from "effect/Effect";
 
 export default Effect.flatMap(
-  Sql.tag,
+  Sql.client.SqliteClient,
   sql =>
     sql`
       CREATE TABLE users (
@@ -11,6 +11,8 @@ export default Effect.flatMap(
         username TEXT NOT NULL,
         bio TEXT NOT NULL,
         image TEXT,
+
+        password_hash TEXT NOT NULL,
 
         created_at DATETIME NOT NULL DEFAULT current_timestamp,
         updated_at DATETIME NOT NULL DEFAULT current_timestamp

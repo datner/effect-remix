@@ -1,8 +1,8 @@
-import * as Sql from "@sqlfx/sqlite/Client";
+import * as Sql from "@effect/sql-sqlite-node";
 import * as Effect from "effect/Effect";
 
 export default Effect.flatMap(
-  Sql.tag,
+  Sql.client.SqliteClient,
   sql =>
     sql`
       CREATE TABLE follows (

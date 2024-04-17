@@ -1,20 +1,20 @@
-import * as Migrator from "@sqlfx/sqlite/Migrator/Node";
-import * as Sqlite from "@sqlfx/sqlite/node";
-import { Config, Layer } from "effect";
+import { NodeContext } from "@effect/platform-node";
+import * as Sqlite from "@effect/sql-sqlite-node";
+import { Config, Layer, String } from "effect";
 import { fileURLToPath } from "node:url";
 
 const migrationsDir = fileURLToPath(new URL("../migrations", import.meta.url));
 
-export const SqliteLive = Sqlite.makeLayer({
+export const SqliteLive = Sqlite.client.layer({
   filename: Config.succeed("db.sqlite"),
-  transformQueryNames: Config.succeed(Sqlite.transform.camelToSnake),
-  transformResultNames: Config.succeed(Sqlite.transform.snakeToCamel),
+  transformQueryNames: Config.succeed(String.camelToSnake),
+  transformResultNames: Config.succeed(String.snakeToCamel),
 });
 
 export const MigratorLive = Layer.provide(
-  Migrator.makeLayer({
-    loader: Migrator.fromDisk(migrationsDir),
+  Sqlite.migrator.layer({
+    loader: Sqlite.migrator.fromFileSystem(migrationsDir),
     schemaDirectory: "app/migrations",
   }),
-  SqliteLive,
+  Layer.merge(SqliteLive, NodeContext.layer),
 );

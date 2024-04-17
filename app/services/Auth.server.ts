@@ -1,12 +1,13 @@
 import { HttpServer } from "@effect/platform";
 import { Schema } from "@effect/schema";
-import { createCookieSessionStorage, Session as RemixSession } from "@remix-run/node";
-import { Config, Context, Duration, Effect, Equal, Layer, Option } from "effect";
-import { redirect } from "./utils.server";
+import { createCookie, createFileSessionStorage, Session as RemixSession } from "@remix-run/node";
+import { Brand, Config, Context, Duration, Effect, Equal, Layer, Option, String } from "effect";
+import * as jose from "jose";
 
-class SessionData
-  extends Schema.TaggedClass<SessionData>("@schema/SessionData")("SessionData", { test: Schema.string })
-{
+class SessionData extends Schema.Class<SessionData>("@schema/SessionData")({ userId: Schema.String }) {
+}
+
+class TokenData extends Schema.Class<TokenData>("@schema/TokenData")({ session: Schema.String }) {
 }
 
 type FlashDataKey<Key extends string> = `__flash_${Key}__`;
@@ -22,22 +23,30 @@ export const IsProd = Config.string("node.env").pipe(
   Config.map(Equal.equals("production")),
 );
 
-const Cookie = Schema.struct({
-  cookie: Schema.optional(Schema.string, { as: "Option" }),
+type BearerToken = Brand.Branded<string, "BearerToken">;
+const BearerToken = Schema.transform(
+  Schema.TemplateLiteral(Schema.Literal("Token "), Schema.String),
+  Schema.String,
+  {
+    decode: String.replace("Token ", ""),
+    encode: _ => `Token ${_}` as const,
+  },
+).pipe(Schema.brand("BearerToken"));
+
+const AuthHeader = Schema.Struct({
+  authorization: Schema.optional(BearerToken, { exact: true, as: "Option" }),
 });
 
 export const make = Effect.gen(function*($) {
-  const isProd = yield* $(IsProd);
   const secret = yield* $(Config.string("SESSION_SECRET"));
-  const storage = createCookieSessionStorage({
-    cookie: {
-      name: "__session",
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secrets: [secret],
-      secure: isProd,
-    },
+  const cookie = createCookie("__session", {
+    secrets: [secret],
+    sameSite: true,
+  });
+
+  const storage = createFileSessionStorage({
+    dir: "app/.sessions",
+    cookie,
   });
 
   const sessionFromSelf = (session: RemixSession<SessionData>) => {
@@ -51,50 +60,56 @@ export const make = Effect.gen(function*($) {
       id: session.id,
       data: session.data as never,
       get logout() {
-        return redirect("/login").pipe(
-          destroySessionCookie,
-          Effect.provideService(Session, sess),
-        );
+        return Effect.provideService(destroySession, Session, sess);
       },
-      get initialize(): Effect.Effect<HttpServer.response.ServerResponse> {
-        return redirect("/").pipe(
-          setSessionCookie("7 days"),
-          Effect.provideService(Session, sess),
-        );
+      get export() {
+        return Effect.provideService(exportSession("7 days"), Session, sess);
       },
     };
     return sess;
   };
 
-  const sessionFromCookie = HttpServer.request.schemaHeaders(Cookie).pipe(
-    Effect.flatMap(_ => _.cookie),
+  const currentSession = HttpServer.request.schemaHeaders(AuthHeader).pipe(
+    Effect.flatMap(_ => _.authorization),
+    Effect.map(jose.decodeJwt),
+    Effect.flatMap(Schema.decodeUnknown(TokenData)),
+    Effect.map(_ => _.session),
     Effect.andThen(storage.getSession),
+    Effect.catchAll(_ => Effect.promise(() => storage.getSession())),
     Effect.map(sessionFromSelf),
     Effect.orDie, // Sessions always exist (?)
+    Effect.withSpan("Auth.currentSession"),
   );
 
-  const setSessionCookie = (maxAge?: Duration.DurationInput) => (req: HttpServer.response.ServerResponse) =>
+  const exportSession = (maxAge?: Duration.DurationInput) =>
     Session.pipe(
       Effect.andThen(_ =>
         storage.commitSession(_.source, {
           maxAge: maxAge ? Duration.toSeconds(maxAge) : undefined,
         })
       ),
-      Effect.map(_ => HttpServer.response.setHeader(req, "Set-Cookie", _)),
+      Effect.andThen(_ =>
+        new jose.UnsecuredJWT({ "session": _ })
+          .setIssuedAt()
+          .setIssuer("urn:example:issuer")
+          .setAudience("urn:example:audience")
+          .setExpirationTime("2h")
+          .encode()
+      ),
       Effect.orDie,
+      Effect.withSpan("Auth.exportSession"),
     );
 
-  const destroySessionCookie = (req: HttpServer.response.ServerResponse) =>
-    Session.pipe(
-      Effect.andThen(_ => storage.destroySession(_.source)),
-      Effect.map(_ => HttpServer.response.setHeader(req, "Set-Cookie", _)),
-      Effect.orDie,
-    );
+  const destroySession = Session.pipe(
+    Effect.andThen(_ => storage.destroySession(_.source)),
+    Effect.orDie,
+    Effect.withSpan("Auth.destroySessionCookie"),
+  );
 
   return {
-    sessionFromCookie,
-    setSessionCookie,
-    destroySessionCookie,
+    currentSession,
+    exportSession,
+    destroySession,
   };
 });
 
@@ -118,9 +133,9 @@ export class Session extends Context.Tag("@services/Session")<Session, {
   ) => Effect.Effect<void>;
   id: string;
   data: FlashSessionData<SessionData, SessionData>;
-  logout: Effect.Effect<HttpServer.response.ServerResponse>;
-  initialize: Effect.Effect<HttpServer.response.ServerResponse>;
+  logout: Effect.Effect<string>;
+  export: Effect.Effect<string>;
 }>() {
-  static live = Layer.effect(this, Auth.sessionFromCookie);
+  static live = Layer.effect(this, Auth.currentSession);
   static layer = Layer.provide(this.live, Auth.layer);
 }

@@ -1,14 +1,14 @@
-import * as Sql from "@sqlfx/sqlite/Client";
+import * as Sql from "@effect/sql-sqlite-node";
 import * as Effect from "effect/Effect";
 
 export default Effect.flatMap(
-  Sql.tag,
+  Sql.client.SqliteClient,
   sql =>
     sql.withTransaction(Effect.all([
       sql`
       CREATE TABLE tags (
         tag_id TEXT PRIMARY KEY NOT NULL,
-        name TEXT
+        name TEXT NOT NULL UNIQUE
       )`,
       sql`
       CREATE TABLE articles (
@@ -36,12 +36,12 @@ export default Effect.flatMap(
         FOREIGN KEY (article_id)
         REFERENCES articles (article_id) 
            ON UPDATE CASCADE
-           ON DELETE SET NULL,
+           ON DELETE CASCADE,
 
         FOREIGN KEY (tag_id)
         REFERENCES tags (tag_id) 
            ON UPDATE CASCADE
-           ON DELETE SET NULL,
+           ON DELETE CASCADE,
 
         UNIQUE(article_id, tag_id)
       )`,
@@ -53,12 +53,12 @@ export default Effect.flatMap(
         FOREIGN KEY (article_id)
         REFERENCES articles (article_id) 
            ON UPDATE CASCADE
-           ON DELETE SET NULL,
+           ON DELETE CASCADE,
 
         FOREIGN KEY (user_id)
         REFERENCES users (user_id) 
            ON UPDATE CASCADE
-           ON DELETE SET NULL,
+           ON DELETE CASCADE,
 
         UNIQUE(article_id, user_id)
       )`,
