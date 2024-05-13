@@ -1,11 +1,11 @@
 import { HttpServer } from "@effect/platform";
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Params as RemixParams } from "@remix-run/react";
-import { Context, Effect, Layer, ManagedRuntime } from "effect";
-import { Auth, Session } from "./Auth.server";
-import { MigratorLive } from "./Database.server";
-import { Password } from "./Password.server";
-import { Users } from "./Users.server";
+import { Context, Effect, Layer, ManagedRuntime, Utils } from "effect";
+import { Auth, Session } from "./Auth";
+import { MigratorLive } from "./Database";
+import { Password } from "./Password";
+import { Users } from "./Users";
 
 const AppLayer = Layer.mergeAll(Auth.layer, Users.layer, Password.layer, MigratorLive);
 
@@ -59,36 +59,47 @@ export const unwrapLoader = <E1, R1 extends AppEnv | RequestEnv, E2, R2 extends 
   return async (args: LoaderFunctionArgs) => awaitedHandler.then(handler => handler(args));
 };
 
+// <Eff extends YieldWrap<Effect<any, any, any>>, AEff>(
+//   f: (resume: Adapter) => Generator<Eff, AEff, never>
+// ): Effect<
+//   AEff,
+//   [Eff] extends [never] ? never : [Eff] extends [YieldWrap<Effect<infer _A, infer E, infer _R>>] ? E : never,
+//   [Eff] extends [never] ? never : [Eff] extends [YieldWrap<Effect<infer _A, infer _E, infer R>>] ? R : never
+// >
 export const loaderGen: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>>(
+  <Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>>(
     f: (
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Generator<Eff, HttpServer.response.ServerResponse, any>,
+    ) => Generator<Eff, HttpServer.response.ServerResponse, never>,
   ): (args: LoaderFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Self, Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>>(
+  <Self, Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>>(
     self: Self,
     f: (
       this: Self,
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Generator<Eff, HttpServer.response.ServerResponse, any>,
+    ) => Generator<Eff, HttpServer.response.ServerResponse, never>,
   ): (args: LoaderFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } = (...args: [any]) => loader(Effect.gen(...args));
 
 export const unwrapLoaderGen: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Eff extends Effect.EffectGen<any, any, AppEnv>, AEff extends RemixHandler<any, any>>(
+  <Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv>>, AEff extends RemixHandler<any, any>>(
     f: (
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Generator<Eff, AEff, any>,
   ): (args: LoaderFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Self, Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>, AEff extends RemixHandler<any, any>>(
+  <
+    Self,
+    Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>,
+    AEff extends RemixHandler<any, any>,
+  >(
     self: Self,
     f: (
       this: Self,
@@ -115,34 +126,38 @@ export const unwrapAction = <E1, R1 extends AppEnv | RequestEnv, E2, R2 extends 
 
 export const actionGen: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>>(
+  <Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>>(
     f: (
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Generator<Eff, HttpServer.response.ServerResponse, any>,
+    ) => Generator<Eff, HttpServer.response.ServerResponse, never>,
   ): (args: ActionFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Self, Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>>(
+  <Self, Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>>(
     self: Self,
     f: (
       this: Self,
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Generator<Eff, HttpServer.response.ServerResponse, any>,
+    ) => Generator<Eff, HttpServer.response.ServerResponse, never>,
   ): (args: ActionFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } = (...args: [any]) => action(Effect.gen(...args));
 
 export const unwrapActionGen: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Eff extends Effect.EffectGen<any, any, AppEnv>, AEff extends RemixHandler<any, any>>(
+  <Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv>>, AEff extends RemixHandler<any, any>>(
     f: (
       resume: Effect.Adapter,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Generator<Eff, AEff, any>,
   ): (args: ActionFunctionArgs) => Promise<Response>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <Self, Eff extends Effect.EffectGen<any, any, AppEnv | RequestEnv>, AEff extends RemixHandler<any, any>>(
+  <
+    Self,
+    Eff extends Utils.YieldWrap<Effect.Effect<any, any, AppEnv | RequestEnv>>,
+    AEff extends RemixHandler<any, any>,
+  >(
     self: Self,
     f: (
       this: Self,

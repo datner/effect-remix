@@ -37,8 +37,8 @@ const AuthHeader = Schema.Struct({
   authorization: Schema.optional(BearerToken, { exact: true, as: "Option" }),
 });
 
-export const make = Effect.gen(function*($) {
-  const secret = yield* $(Config.string("SESSION_SECRET"));
+export const make = Effect.gen(function*() {
+  const secret = yield* Config.string("SESSION_SECRET");
   const cookie = createCookie("__session", {
     secrets: [secret],
     sameSite: true,

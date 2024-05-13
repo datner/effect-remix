@@ -1,7 +1,7 @@
 import { HttpServer } from "@effect/platform";
 import type { MetaFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import * as Remix from "~/services/Remix.server";
+import { Remix } from "~/services.server/prelude";
 
 export const meta: MetaFunction = () => {
   return [

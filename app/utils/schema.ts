@@ -9,6 +9,7 @@ export function structOptional<NER extends S.Struct.Fields>(
     never,
     "?:",
     S.Schema.Encoded<NER[K]>,
+    false,
     S.Schema.Context<NER[K]>
   >;
 } {

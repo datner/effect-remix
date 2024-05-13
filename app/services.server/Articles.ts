@@ -1,22 +1,22 @@
 import { HttpServer } from "@effect/platform";
 import { Schema } from "@effect/schema";
-import * as Sql from "@effect/sql-sqlite-node";
+import * as Sql from "@effect/sql";
 import { Effect, Layer, Option } from "effect";
 import { Article, ArticleTag, ArticleUpdate } from "~/models/Article";
 import { Tag } from "~/models/Tag";
-import { SqliteLive } from "./Database.server";
+import { SqliteLive } from "./Database";
 
-export const make = Effect.gen(function*($) {
-  const sql = yield* $(Sql.client.SqliteClient);
+export const make = Effect.gen(function*() {
+  const sql = yield* Sql.client.Client;
 
-  const getById = yield* $(Sql.resolver.findById("ArticleById", {
+  const getById = yield* Sql.resolver.findById("ArticleById", {
     Id: Schema.String,
     Result: Article,
     ResultId: _ => _.id,
     execute: ids => sql`SELECT * FROM articles WHERE user_id IN ${sql.in(ids)}`,
-  }));
+  });
 
-  const articleTags = yield* $(Sql.resolver.grouped("ArticleTags", {
+  const articleTags = yield* Sql.resolver.grouped("ArticleTags", {
     Request: Article,
     RequestGroupKey: _ => _.articleId,
     Result: ArticleTag,
@@ -27,7 +27,7 @@ SELECT tag_id, name, article_tags.article_tag
 FROM tags 
   INNER JOIN article_tags ON article_tags.tag_id = tags.tag_id
 WHERE article_tags.article_id IN ${sql.in(reqs.map(_ => _.articleId))}`,
-  }));
+  });
 
   const insertArticle = Sql.schema.single({
     Request: Article,

@@ -1,7 +1,7 @@
 import { Schema } from "@effect/schema";
 import { createId } from "@paralleldrive/cuid2";
 import { Brand, Struct } from "effect";
-import { Hash } from "~/services/Password";
+import { Hash } from "~/services.shared/Password";
 import { structOptional } from "~/utils/schema";
 
 // @datner: keep in mind, this is a "meh, good enough" regex for an email. Super naive

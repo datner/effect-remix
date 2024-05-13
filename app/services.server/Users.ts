@@ -1,26 +1,26 @@
 import { HttpServer } from "@effect/platform";
 import { Schema } from "@effect/schema";
-import * as Sql from "@effect/sql-sqlite-node";
+import * as Sql from "@effect/sql";
 import { Console, Effect, Layer, Option } from "effect";
 import { User, UserUpdate } from "~/models/User";
-import { SqliteLive } from "./Database.server";
+import { SqliteLive } from "./Database";
 
-export const make = Effect.gen(function*($) {
-  const sql = yield* $(Sql.client.SqliteClient);
+export const make = Effect.gen(function*() {
+  const sql = yield* Sql.client.Client;
 
-  const userById = yield* $(Sql.resolver.findById("UserById", {
+  const userById = yield* Sql.resolver.findById("UserById", {
     Id: Schema.String,
     Result: User,
     ResultId: _ => _.id,
     execute: ids => sql`SELECT * FROM users WHERE user_id IN ${sql.in(ids)}`,
-  }));
+  });
 
-  const userByEmail = yield* $(Sql.resolver.findById("UserByEmail", {
+  const userByEmail = yield* Sql.resolver.findById("UserByEmail", {
     Id: Schema.String,
     ResultId: _ => _.email,
     Result: User,
     execute: emails => sql`SELECT * FROM users WHERE email IN ${sql.in(emails)}`,
-  }));
+  });
 
   const getById = (id: string) =>
     userById.execute(id).pipe(

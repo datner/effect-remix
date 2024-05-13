@@ -1,13 +1,19 @@
 import bcrypt from "bcryptjs";
 import { Config, Context, Effect, Layer } from "effect";
-import { Hash, PasswordHashingError, PasswordInvalidError, PasswordValidatingError, Salt } from "./Password";
+import {
+  Hash,
+  PasswordHashingError,
+  PasswordInvalidError,
+  PasswordValidatingError,
+  Salt,
+} from "~/services.shared/Password";
 
 const SaltRounds = Config.number("saltRounds").pipe(
   Config.withDefault(10),
 );
 
-export const make = Effect.gen(function*($) {
-  const rounds = yield* $(SaltRounds);
+export const make = Effect.gen(function*() {
+  const rounds = yield* SaltRounds;
   const Salt = Effect.async<Salt, PasswordHashingError, never>(register => {
     bcrypt.genSalt(rounds, (err, salt) => {
       if (err) {
